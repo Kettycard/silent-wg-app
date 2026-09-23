@@ -107,10 +107,29 @@ class MainActivity : Activity() {
         }
     }
 
-    /** JS bridge：网页 ksu.exec 同步签名（回调名由网页侧兼容层处理） */
+    /** JS bridge：兼容网页 ksu.exec 的三种签名（1参同步 / 2参回调 / 3参带options） */
     inner class SuBridge {
         @JavascriptInterface
         fun exec(cmd: String): String = sh(cmd) ?: ""
+
+        @JavascriptInterface
+        fun exec(cmd: String, cb: String): String {
+            val out = sh(cmd) ?: ""
+            runJsCallback(cb, out)
+            return out
+        }
+
+        @JavascriptInterface
+        fun exec(cmd: String, options: String, cb: String): String {
+            val out = sh(cmd) ?: ""
+            runJsCallback(cb, out)
+            return out
+        }
+
+        private fun runJsCallback(cb: String, out: String) {
+            val js = "$cb(0, ${org.json.JSONObject.quote(out)}, \"\")"
+            web.post { web.evaluateJavascript(js, null) }
+        }
     }
 
     private fun sh(cmd: String): String? = try {
