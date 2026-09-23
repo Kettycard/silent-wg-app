@@ -26,43 +26,46 @@ class Hook : IXposedHookLoadPackage {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName != "android") return   // 只作用于 system_server
 
-        try {
-            XposedHelpers.findAndHookMethod(
-                "com.android.server.connectivity.DnsManager",
-                lpparam.classLoader,
-                "setDnsConfigurationForNetwork",
-                Int::class.javaPrimitiveType,               // netId
-                Array<String>::class.java,                  // assignedServers (目标)
-                Array<String>::class.java,                  // domains
-                Array<String>::class.java,                  // params
-                String::class.java,                         // tlsHostname
-                Array<String>::class.java,                  // tlsServers (DoT)
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        val dns = readDns()
-                        if (dns.isEmpty()) return           // 开关关闭时不做任何事
+        val hook = object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                val dns = readDns()
+                if (dns.isEmpty()) return           // 开关关闭时不做任何事
+                if (param.args.size < 6) return
 
-                        @Suppress("UNCHECKED_CAST")
-                        val ns = param.args[1] as? Array<String>
-                        if (ns != null && !ns.contains(dns)) {
-                            param.args[1] = arrayOf(dns)
-                            XposedBridge.log("$TAG: DNS takeover ${ns.joinToString()} -> $dns")
-                        }
-                        // 清空 DoT 服务器（严格/自动私有 DNS 无法绕过我们）
-                        if (param.args[5] != null) {
-                            @Suppress("UNCHECKED_CAST")
-                            val tls = param.args[5] as Array<String>
-                            if (tls.isNotEmpty()) {
-                                param.args[5] = arrayOf<String>()
-                                XposedBridge.log("$TAG: DoT disabled to prevent bypass")
-                            }
-                        }
+                @Suppress("UNCHECKED_CAST")
+                val ns = param.args[1] as? Array<String>
+                if (ns != null && !ns.contains(dns)) {
+                    param.args[1] = arrayOf(dns)
+                    XposedBridge.log("$TAG: DNS takeover ${ns.joinToString()} -> $dns")
+                }
+                // 清空 DoT 服务器（私有 DNS 无法绕过我们）
+                val tlsArg = param.args[5]
+                if (tlsArg != null && tlsArg is Array<*>) {
+                    @Suppress("UNCHECKED_CAST")
+                    val tls = tlsArg as Array<String>
+                    if (tls.isNotEmpty()) {
+                        param.args[5] = arrayOf<String>()
+                        XposedBridge.log("$TAG: DoT disabled to prevent bypass")
                     }
                 }
-            )
-            XposedBridge.log("$TAG: DnsManager hook installed")
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG: hook failed: $t")
+            }
+        }
+
+        // Android 16+/HyperOS：DnsManager 随 Connectivity mainline 模块移出主 ClassLoader，
+        // 改 hook frameworks/base 内确定存在的下游 NetworkManagementService；
+        // hookAllMethods 免疫签名差异。两处同时命中时幂等（contains 判断）。
+        val targets = listOf(
+            "com.android.server.net.NetworkManagementService",
+            "com.android.server.connectivity.DnsManager"
+        )
+        for (name in targets) {
+            try {
+                val clz = XposedHelpers.findClass(name, lpparam.classLoader)
+                XposedBridge.hookAllMethods(clz, "setDnsConfigurationForNetwork", hook)
+                XposedBridge.log("$TAG: hooked $name")
+            } catch (t: Throwable) {
+                XposedBridge.log("$TAG: $name unavailable -> $t")
+            }
         }
     }
 
