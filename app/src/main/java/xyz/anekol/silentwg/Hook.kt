@@ -54,18 +54,29 @@ class Hook : IXposedHookLoadPackage {
         // Android 16+/HyperOS：DnsManager 随 Connectivity mainline 模块移出主 ClassLoader，
         // 改 hook frameworks/base 内确定存在的下游 NetworkManagementService；
         // hookAllMethods 免疫签名差异。两处同时命中时幂等（contains 判断）。
+        // APEX tethering(mainline) 已把类重定位: android.net.connectivity.<原名>。
+        // DnsManager 就住在 service-connectivity.jar（已从手机拉回逆向确认）。
         val targets = listOf(
-            "com.android.server.net.NetworkManagementService",
-            "com.android.server.connectivity.DnsManager"
+            "android.net.connectivity.com.android.server.connectivity.DnsManager",
+            "com.android.server.net.NetworkManagementService"
         )
         for (name in targets) {
             try {
                 val clz = XposedHelpers.findClass(name, lpparam.classLoader)
-                XposedBridge.hookAllMethods(clz, "setDnsConfigurationForNetwork", hook)
-                XposedBridge.log("$TAG: hooked $name")
+                // hookAllMethods 免疫参数形态差异（String[]/ResolverParamsParcel 两种签名通吃）
+                val hooked = XposedBridge.hookAllMethods(clz, "setDnsConfigurationForNetwork", hook)
+                XposedBridge.log("$TAG: hooked $name (${hooked.size} overloads)")
             } catch (t: Throwable) {
                 XposedBridge.log("$TAG: $name unavailable -> $t")
             }
+        }
+        // NMS 兜底：方法名可能是 setDnsServersForNetwork
+        try {
+            val nms = XposedHelpers.findClass("com.android.server.net.NetworkManagementService", lpparam.classLoader)
+            val hooked2 = XposedBridge.hookAllMethods(nms, "setDnsServersForNetwork", hook)
+            XposedBridge.log("$TAG: hooked NMS.setDnsServersForNetwork (${hooked2.size} overloads)")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: NMS.setDnsServersForNetwork unavailable -> $t")
         }
     }
 
