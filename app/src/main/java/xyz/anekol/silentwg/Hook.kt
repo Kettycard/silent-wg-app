@@ -53,7 +53,7 @@ class Hook : IXposedHookLoadPackage {
                             @Suppress("UNCHECKED_CAST")
                             val tls = param.args[5] as Array<String>
                             if (tls.isNotEmpty()) {
-                                param.args[5] = arrayOf()
+                                param.args[5] = arrayOf<String>()
                                 XposedBridge.log("$TAG: DoT disabled to prevent bypass")
                             }
                         }
