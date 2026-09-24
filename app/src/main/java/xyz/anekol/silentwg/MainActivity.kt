@@ -32,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnDiag: MaterialButton
 
     private lateinit var switchDnsTakeover: MaterialSwitch
+    private lateinit var editDnsServer: TextInputEditText
+    private lateinit var btnSaveDns: MaterialButton
 
     private lateinit var switchAutoConnect: MaterialSwitch
     private lateinit var etSsidDown: TextInputEditText
@@ -66,6 +68,8 @@ class MainActivity : AppCompatActivity() {
         btnDiag = findViewById(R.id.btnDiag)
 
         switchDnsTakeover = findViewById(R.id.switchDnsTakeover)
+        editDnsServer = findViewById(R.id.editDnsServer)
+        btnSaveDns = findViewById(R.id.btnSaveDns)
 
         switchAutoConnect = findViewById(R.id.switchAutoConnect)
         etSsidDown = findViewById(R.id.etSsidDown)
@@ -124,14 +128,30 @@ class MainActivity : AppCompatActivity() {
         }
 
         switchDnsTakeover.setOnCheckedChangeListener { _, isChecked ->
+            val targetDns = editDnsServer.text.toString().trim().ifEmpty { "192.168.6.115" }
             val cmd = if (isChecked) {
-                "setprop persist.silentwg.dns 192.168.6.115"
+                "setprop persist.silentwg.dns '$targetDns'"
             } else {
                 "setprop persist.silentwg.dns ''"
             }
             runSu(cmd) {
                 runOnUiThread {
-                    Toast.makeText(this, if (isChecked) "DNS 接管已开启 (192.168.6.115)" else "DNS 接管已关闭", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, if (isChecked) "DNS 接管已开启 ($targetDns)" else "DNS 接管已关闭", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        btnSaveDns.setOnClickListener {
+            val targetDns = editDnsServer.text.toString().trim().ifEmpty { "192.168.6.115" }
+            val isEnabled = switchDnsTakeover.isChecked
+            val cmd = if (isEnabled) {
+                "setprop persist.silentwg.dns '$targetDns'"
+            } else {
+                "setprop persist.silentwg.dns ''"
+            }
+            runSu(cmd) {
+                runOnUiThread {
+                    Toast.makeText(this, "DNS 已保存: $targetDns", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -218,6 +238,11 @@ class MainActivity : AppCompatActivity() {
 
                 // DNS 接管
                 switchDnsTakeover.isChecked = isDnsTakeover
+                if (dnsProp.isNotEmpty()) {
+                    editDnsServer.setText(dnsProp)
+                } else if (editDnsServer.text.isNullOrEmpty()) {
+                    editDnsServer.setText("192.168.6.115")
+                }
 
                 // 规则
                 switchAutoConnect.isChecked = (autoConn != "0")

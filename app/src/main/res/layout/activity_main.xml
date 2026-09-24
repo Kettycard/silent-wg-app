@@ -152,17 +152,45 @@
                             android:layout_marginTop="12dp">
 
                             <TextView
+                                android:id="@+id/textDnsTakeoverStatus"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="启用接管 (192.168.6.115)"
-                                android:textSize="15sp" />
+                                android:text="启用全局接管"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
 
                             <com.google.android.material.materialswitch.MaterialSwitch
                                 android:id="@+id/switchDnsTakeover"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" />
                         </LinearLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/layoutDnsServer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="目标 DNS 服务器 IP"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editDnsServer"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textUri"
+                                android:maxLines="1"
+                                android:textSize="14sp"
+                                android:text="192.168.6.115" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveDns"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="保存自定义 DNS"
+                            style="@style/Widget.Material3.Button.TonalButton" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 

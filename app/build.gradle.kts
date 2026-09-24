@@ -10,13 +10,21 @@ android {
         applicationId = "xyz.anekol.silentwg"
         minSdk = 34
         targetSdk = 35
-        versionCode = 8
-        versionName = "2.0-MD3"
+        versionCode = 9
+        versionName = "2.1-MD3"
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.jks")
+            storePassword = "silentwg123"
+            keyAlias = "silentwg"
+            keyPassword = "silentwg123"
+        }
     }
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
