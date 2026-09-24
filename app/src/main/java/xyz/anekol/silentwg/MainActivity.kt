@@ -103,6 +103,12 @@ class MainActivity : AppCompatActivity() {
 
         tvLogs = findViewById(R.id.tvLogs)
 
+        val dotDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor("#F44336"))
+        }
+        viewStatusDot.background = dotDrawable
+
         val epAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, arrayOf("v4", "v6", "none"))
         actvEpPrefer.setAdapter(epAdapter)
     }
@@ -307,13 +313,18 @@ class MainActivity : AppCompatActivity() {
     private fun loadAllData() {
         swipeRefresh.isRefreshing = true
         executor.execute {
-            refreshStatus()
-            loadTunnelProfiles()
-            loadRules()
-            loadTunnelConf()
-            loadLogs()
-            runOnUiThread {
-                swipeRefresh.isRefreshing = false
+            try {
+                refreshStatus()
+                loadTunnelProfiles()
+                loadRules()
+                loadTunnelConf()
+                loadLogs()
+            } catch (e: Exception) {
+                android.util.Log.e("SilentWG", "loadAllData error", e)
+            } finally {
+                runOnUiThread {
+                    swipeRefresh.isRefreshing = false
+                }
             }
         }
     }
@@ -347,14 +358,16 @@ class MainActivity : AppCompatActivity() {
             switchTunnel.isChecked = isUp
             switchTunnel.text = if (isUp) "隧道已建立" else "隧道已断开"
 
-            val bg = viewStatusDot.background as GradientDrawable
+            val dot = viewStatusDot.background as? GradientDrawable
             if (isUp) {
-                bg.setColor(Color.parseColor("#4CAF50"))
+                dot?.setColor(Color.parseColor("#4CAF50"))
                 tvStatusTitle.text = "WireGuard 运行正常"
+                tvStatusTitle.setTextColor(Color.parseColor("#4CAF50"))
                 tvStatusDetail.text = "节点: $ep\n握手: $handshake" + if (rx.isNotEmpty()) "\n流量: ↓$rx  ↑$tx" else ""
             } else {
-                bg.setColor(Color.parseColor("#F44336"))
+                dot?.setColor(Color.parseColor("#F44336"))
                 tvStatusTitle.text = "WireGuard 已停止"
+                tvStatusTitle.setTextColor(Color.parseColor("#F44336"))
                 tvStatusDetail.text = "轻按右侧开关启动隧道"
             }
 
@@ -376,7 +389,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderTunnelProfiles(lines: List<String>) {
-        layoutTunnelProfiles.removeAllViews()
+        try {
+            layoutTunnelProfiles.removeAllViews()
 
         if (lines.isEmpty()) {
             val emptyTv = TextView(this).apply {
@@ -478,7 +492,7 @@ class MainActivity : AppCompatActivity() {
                     layoutParams = lp
                 }
 
-                val btnSwitch = MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                val btnSwitch = MaterialButton(this).apply {
                     text = if (isCur) "已激活" else "切换为此节点"
                     isEnabled = !isCur
                     textSize = 12f
@@ -494,7 +508,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 actionsLayout.addView(btnSwitch)
 
-                val btnSetDef = MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                val btnSetDef = MaterialButton(this).apply {
                     text = if (isDef) "默认" else "设为默认"
                     isEnabled = !isDef
                     textSize = 12f
@@ -511,7 +525,7 @@ class MainActivity : AppCompatActivity() {
                 actionsLayout.addView(btnSetDef)
 
                 if (lines.size > 1 && !isCur) {
-                    val btnDel = MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                    val btnDel = MaterialButton(this).apply {
                         text = "删除"
                         setTextColor(Color.parseColor("#E53935"))
                         textSize = 12f
@@ -539,6 +553,9 @@ class MainActivity : AppCompatActivity() {
                 card.addView(itemLayout)
                 layoutTunnelProfiles.addView(card)
             }
+        }
+        } catch (e: Exception) {
+            android.util.Log.e("SilentWG", "renderTunnelProfiles error", e)
         }
     }
 

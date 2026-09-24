@@ -10,8 +10,8 @@ android {
         applicationId = "xyz.anekol.silentwg"
         minSdk = 34
         targetSdk = 35
-        versionCode = 10
-        versionName = "2.2-MD3"
+        versionCode = 11
+        versionName = "2.3-MD3"
     }
     signingConfigs {
         create("release") {
