@@ -307,21 +307,64 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="WireGuard 隧道配置"
+                            android:text="WireGuard 节点与多配置管理"
                             android:textSize="18sp"
                             android:textStyle="bold" />
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="支持多节点一键导入、热切换与默认开机节点设定"
+                            android:textSize="12sp"
+                            android:textColor="?android:attr/textColorSecondary" />
+
+                        <!-- 快捷导入与新建按钮行 -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:hint="tunnel.conf 配置内容"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnImportConf"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="📁 导入 .conf"
+                                style="@style/Widget.Material3.Button.TonalButton" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnAddConfManual"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="➕ 手动新建"
+                                style="@style/Widget.Material3.Button.OutlinedButton" />
+                        </LinearLayout>
+
+                        <!-- 节点卡片列表容器 -->
+                        <LinearLayout
+                            android:id="@+id/layoutTunnelProfiles"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="vertical" />
+
+                        <!-- 当前激活配置源码折叠编辑 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:hint="当前生效节点原始配置 (tunnel.conf)"
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etTunnelConf"
                                 android:layout_width="match_parent"
-                                android:layout_height="180dp"
+                                android:layout_height="140dp"
                                 android:gravity="top|start"
                                 android:fontFamily="monospace"
                                 android:textSize="12sp"
@@ -332,8 +375,8 @@
                             android:id="@+id/btnSaveTunnelConf"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="保存并重载隧道" />
+                            android:layout_marginTop="8dp"
+                            android:text="保存当前原始文本并重载" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
