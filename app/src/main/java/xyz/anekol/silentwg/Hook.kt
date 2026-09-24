@@ -89,6 +89,14 @@ class Hook : IXposedHookLoadPackage {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName != "android") return   // 只作用于 system_server
 
+        // 诊断：boot classpath 里的 connectivity 相关 jar
+        try {
+            val bcp = System.getProperty("java.boot.class.path")
+                ?: System.getProperty("sun.boot.class.path") ?: ""
+            val rel = bcp.split(":").filter { it.contains("connectivity") || it.contains("tethering") }
+            XposedBridge.log("$TAG: boot-jars: ${rel.joinToString(", ").ifEmpty { "none" }}")
+        } catch (t: Throwable) { }
+
         // 1) 主 CL 直接尝试
         tryInstall(lpparam.classLoader, "primary")
 
@@ -112,6 +120,26 @@ class Hook : IXposedHookLoadPackage {
             XposedBridge.log("$TAG: loadClass trap armed")
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: loadClass hook failed: $t")
+        }
+
+        // 2b) SystemServiceManager.startService：ConnectivityService 从这里起，
+        //     返回的 service 实例的 ClassLoader 就是 tethering APEX 专用 CL
+        try {
+            val ssm = XposedHelpers.findClass("com.android.server.SystemServiceManager", lpparam.classLoader)
+            val svcCapture = object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    if (dnsHookInstalled) return
+                    val r = param.result ?: return
+                    val cl = r.javaClass.classLoader ?: return
+                    tryInstall(cl, "ssm:${r.javaClass.simpleName}")
+                }
+            }
+            for (m in listOf("startService", "startServiceFromSource")) {
+                val n = XposedBridge.hookAllMethods(ssm, m, svcCapture)
+                XposedBridge.log("$TAG: SSM.$m armed ($n overloads)")
+            }
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: SSM hook failed: ${t.javaClass.simpleName}")
         }
 
         // 3) NMS 兜底（framework 主 CL；方法名为空集是常态，命中算意外之喜）
