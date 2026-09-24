@@ -228,7 +228,6 @@ class MainActivity : AppCompatActivity() {
 
         val nameInputLayout = TextInputLayout(this).apply {
             hint = "节点名称 (英文/数字/下划线, 如 home, vps)"
-            style = com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox
         }
         val etName = TextInputEditText(this).apply { maxLines = 1 }
         nameInputLayout.addView(etName)
@@ -240,7 +239,6 @@ class MainActivity : AppCompatActivity() {
             val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             lp.topMargin = topMargin
             layoutParams = lp
-            style = com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox
         }
         val etConf = TextInputEditText(this).apply {
             minLines = 6
