@@ -3,7 +3,7 @@
 
     <application
         android:label="SilentWG"
-        android:theme="@android:style/Theme.Material.Light"
+        android:theme="@style/Theme.SilentWG"
         android:allowBackup="false">
 
         <activity

@@ -1,0 +1,8 @@
+<resources>
+    <!-- Base application theme with Material 3 Dynamic Colors support -->
+    <style name="Theme.SilentWG" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
