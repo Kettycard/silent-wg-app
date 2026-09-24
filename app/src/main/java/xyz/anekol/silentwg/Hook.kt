@@ -23,29 +23,89 @@ class Hook : IXposedHookLoadPackage {
         private const val DEFAULT_DNS = "192.168.6.115"
     }
 
+    @Volatile private var cachedThis: Any? = null
+    @Volatile private var cachedArgs: Array<out Any?>? = null
+
+    /** 属性变化 → 用缓存的真实调用参数主动重调（hook 内自动改写），2s 内生效，免飞行模式 */
+    private fun startPropPoller() {
+        Thread {
+            var last = readDns()
+            while (true) {
+                try {
+                    Thread.sleep(2000)
+                    val cur = readDns()
+                    if (cur != last) {
+                        last = cur
+                        val ths = cachedThis
+                        val args = cachedArgs
+                        if (ths != null && args != null) {
+                            val m = ths.javaClass.declaredMethods.firstOrNull {
+                                it.name == "setDnsConfigurationForNetwork" && it.parameterTypes.size == args.size
+                            }
+                            if (m != null) {
+                                m.isAccessible = true
+                                m.invoke(ths, *args)
+                                XposedBridge.log("$TAG: prop changed -> re-issued setDnsConfigurationForNetwork (dns=$cur)")
+                            }
+                        }
+                    }
+                } catch (t: Throwable) {
+                    XposedBridge.log("$TAG: poller: $t")
+                }
+            }
+        }.apply { isDaemon = true; name = "SilentWG-prop-poller" }.start()
+    }
+
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName != "android") return   // 只作用于 system_server
 
         val hook = object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val dns = readDns()
-                if (dns.isEmpty()) return           // 开关关闭时不做任何事
-                if (param.args.size < 6) return
+                if (dns.isEmpty()) return
+                if (param.args.isEmpty()) return
+
+                // 缓存真实调用（实例+参数副本）：开关切换时轮询线程用它主动重调，免飞行模式
+                try {
+                    cachedThis = param.thisObject
+                    cachedArgs = param.args.copyOf()
+                } catch (t: Throwable) { /* 缓存失败不影响主改写 */ }
 
                 @Suppress("UNCHECKED_CAST")
-                val ns = param.args[1] as? Array<String>
-                if (ns != null && !ns.contains(dns)) {
-                    param.args[1] = arrayOf(dns)
-                    XposedBridge.log("$TAG: DNS takeover ${ns.joinToString()} -> $dns")
-                }
-                // 清空 DoT 服务器（私有 DNS 无法绕过我们）
-                val tlsArg = param.args[5]
-                if (tlsArg != null && tlsArg is Array<*>) {
-                    @Suppress("UNCHECKED_CAST")
-                    val tls = tlsArg as Array<String>
-                    if (tls.isNotEmpty()) {
-                        param.args[5] = arrayOf<String>()
-                        XposedBridge.log("$TAG: DoT disabled to prevent bypass")
+                val a1: Any? = param.args.getOrNull(1)
+                if (a1 is Array<*>) {
+                    // 老签名: (netId, String[] servers, ...)
+                    val ns = a1 as? Array<String>
+                    if (ns != null && !ns.contains(dns)) {
+                        param.args[1] = arrayOf(dns)
+                        XposedBridge.log("$TAG: DNS takeover ${ns.joinToString()} -> $dns")
+                    }
+                    if (param.args.size >= 6) {
+                        val tlsArg = param.args[5]
+                        if (tlsArg != null && tlsArg is Array<*> && tlsArg.isNotEmpty()) {
+                            param.args[5] = arrayOf<String>()
+                            XposedBridge.log("$TAG: DoT disabled to prevent bypass")
+                        }
+                    }
+                } else if (a1 != null && a1.javaClass.name.endsWith("ResolverParamsParcel")) {
+                    // APEX 新签名: (netId, ResolverParamsParcel params) —— 字段反射改写
+                    try {
+                        val ns = XposedHelpers.getObjectField(a1, "dnsServers") as? Array<String>
+                        if (ns != null && !ns.contains(dns)) {
+                            XposedHelpers.setObjectField(a1, "dnsServers", arrayOf(dns))
+                            XposedBridge.log("$TAG: DNS takeover(parcel) ${ns.joinToString()} -> $dns")
+                        }
+                        val tls = XposedHelpers.getObjectField(a1, "tlsServers") as? Array<String>
+                        if (tls != null && tls.isNotEmpty()) {
+                            XposedHelpers.setObjectField(a1, "tlsServers", arrayOf<String>())
+                            XposedBridge.log("$TAG: DoT disabled (parcel)")
+                        }
+                        val tlsName = XposedHelpers.getObjectField(a1, "tlsName")
+                        if (tlsName != null && (tlsName as String).isNotEmpty()) {
+                            XposedHelpers.setObjectField(a1, "tlsName", "")
+                        }
+                    } catch (t: Throwable) {
+                        XposedBridge.log("$TAG: parcel rewrite failed: $t")
                     }
                 }
             }
@@ -78,6 +138,7 @@ class Hook : IXposedHookLoadPackage {
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: NMS.setDnsServersForNetwork unavailable -> $t")
         }
+        startPropPoller()
     }
 
     private fun readDns(): String {
